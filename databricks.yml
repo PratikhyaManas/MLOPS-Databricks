@@ -1,0 +1,211 @@
+# Databricks Asset Bundle - MLOps Production Pipeline
+# Bundle configuration for ML workflows, jobs, and deployments
+
+bundle:
+  name: mlops-asset-bundle
+  
+include:
+  - resources/*.yml
+
+# Workspace configuration
+workspace:
+  root_path: "~/.bundle/${bundle.name}/${bundle.target}"
+
+# Artifact configuration  
+artifacts:
+  default:
+    type: whl
+    build: python setup.py bdist_wheel
+    path: .
+
+# Variable definitions
+variables:
+  catalog:
+    description: Unity Catalog name
+    default: main
+  
+  schema:
+    description: Schema/Database name  
+    default: mlops_prod
+  
+  environment:
+    description: Environment (dev/staging/prod)
+    default: dev
+
+# Resources - Jobs, Pipelines, Models
+resources:
+  jobs:
+    # ML Training Pipeline Job
+    ml_training_pipeline:
+      name: "[${bundle.target}] ML Training Pipeline"
+      
+      job_clusters:
+        - job_cluster_key: training_cluster
+          new_cluster:
+            spark_version: 13.3.x-ml-scala2.12
+            node_type_id: i3.xlarge
+            num_workers: 2
+            spark_conf:
+              spark.databricks.delta.preview.enabled: "true"
+              spark.databricks.delta.retentionDurationCheck.enabled: "false"
+            custom_tags:
+              Project: MLOps
+              Environment: ${var.environment}
+      
+      tasks:
+        - task_key: ingest_data
+          job_cluster_key: training_cluster
+          notebook_task:
+            notebook_path: ./src/notebooks/01_data_ingestion
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+              environment: ${var.environment}
+        
+        - task_key: feature_engineering  
+          depends_on:
+            - task_key: ingest_data
+          job_cluster_key: training_cluster
+          notebook_task:
+            notebook_path: ./src/notebooks/02_feature_engineering
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+        
+        - task_key: train_model
+          depends_on:
+            - task_key: feature_engineering
+          job_cluster_key: training_cluster
+          notebook_task:
+            notebook_path: ./src/notebooks/03_model_training
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+              experiment_path: /Shared/mlops-experiments
+        
+        - task_key: validate_model
+          depends_on:
+            - task_key: train_model
+          job_cluster_key: training_cluster
+          notebook_task:
+            notebook_path: ./src/notebooks/04_model_validation
+            base_parameters:
+              threshold: "0.75"
+        
+        - task_key: register_model
+          depends_on:
+            - task_key: validate_model
+          job_cluster_key: training_cluster  
+          notebook_task:
+            notebook_path: ./src/notebooks/05_model_registration
+            base_parameters:
+              model_name: ${bundle.target}_production_model
+      
+      schedule:
+        quartz_cron_expression: "0 0 2 * * ?"
+        timezone_id: America/Los_Angeles
+        pause_status: UNPAUSED
+      
+      email_notifications:
+        on_start:
+          - mlops-team@company.com
+        on_success:
+          - mlops-team@company.com
+        on_failure:
+          - mlops-team@company.com
+          - data-engineering@company.com
+      
+      max_concurrent_runs: 1
+      timeout_seconds: 14400
+      
+    # Batch Inference Pipeline  
+    batch_inference_pipeline:
+      name: "[${bundle.target}] Batch Inference Pipeline"
+      
+      tasks:
+        - task_key: batch_scoring
+          new_cluster:
+            spark_version: 13.3.x-ml-scala2.12
+            node_type_id: i3.2xlarge
+            num_workers: 4
+          notebook_task:
+            notebook_path: ./src/notebooks/06_batch_inference
+            base_parameters:
+              model_name: ${bundle.target}_production_model
+              model_stage: Production
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+      
+      schedule:
+        quartz_cron_expression: "0 0 */6 * * ?"
+        timezone_id: America/Los_Angeles
+      
+      email_notifications:
+        on_failure:
+          - mlops-team@company.com
+  
+  # MLflow Experiments
+  experiments:
+    mlops_experiment:
+      name: /Shared/mlops-experiments
+      description: "Production ML experiments for ${bundle.target}"
+
+  # Model Serving Endpoints (for real-time inference)
+  model_serving_endpoints:
+    production_endpoint:
+      name: ${bundle.target}-ml-serving
+      config:
+        served_models:
+          - model_name: ${bundle.target}_production_model
+            model_version: latest
+            workload_size: Small
+            scale_to_zero_enabled: true
+        traffic_config:
+          routes:
+            - served_model_name: ${bundle.target}_production_model
+              traffic_percentage: 100
+
+# Target environments
+targets:
+  # Development environment
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://your-dev-workspace.cloud.databricks.com
+    variables:
+      catalog: dev_catalog
+      schema: mlops_dev
+      environment: dev
+    
+  # Staging environment  
+  staging:
+    mode: production
+    workspace:
+      host: https://your-staging-workspace.cloud.databricks.com
+    variables:
+      catalog: staging_catalog
+      schema: mlops_staging
+      environment: staging
+    run_as:
+      service_principal_name: staging-sp
+  
+  # Production environment
+  prod:
+    mode: production
+    workspace:
+      host: https://your-prod-workspace.cloud.databricks.com
+    variables:
+      catalog: prod_catalog
+      schema: mlops_prod
+      environment: prod
+    run_as:
+      service_principal_name: prod-sp
+    
+    permissions:
+      - level: CAN_MANAGE
+        group_name: mlops-admins
+      - level: CAN_VIEW
+        group_name: data-scientists
+      - level: CAN_RUN
+        group_name: ml-engineers

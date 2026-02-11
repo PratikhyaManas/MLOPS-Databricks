@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual env
+venv/
+env/
+.venv/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# Databricks
+.databricks/
+*.dbc
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+# Environment
+.env
+secrets.yaml
+
+# Data
+data/
+*.csv
+*.parquet

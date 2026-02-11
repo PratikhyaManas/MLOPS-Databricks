@@ -1,0 +1,19 @@
+{
+  "cluster_name": "mlops-cluster",
+  "spark_version": "13.3.x-ml-scala2.12",
+  "node_type_id": "i3.xlarge",
+  "driver_node_type_id": "i3.xlarge",
+  "num_workers": 2,
+  "autoscale": {
+    "min_workers": 2,
+    "max_workers": 8
+  },
+  "spark_conf": {
+    "spark.databricks.delta.preview.enabled": "true",
+    "spark.databricks.delta.retentionDurationCheck.enabled": "false"
+  },
+  "custom_tags": {
+    "Project": "MLOps",
+    "Environment": "Production"
+  }
+}
