@@ -1,4 +1,5 @@
 # Databricks MLOps Requirements
+# Production dependencies
 
 # Core Databricks
 databricks-cli>=0.18.0
@@ -19,17 +20,15 @@ pandas>=2.1.4
 numpy>=1.26.2
 pyarrow>=14.0.1
 
-# Testing
-pytest>=7.4.3
-pytest-cov>=4.1.0
-pytest-mock>=3.12.0
-
-# Code quality
-flake8>=7.0.0
-black>=23.12.1
-mypy>=1.8.0
-
 # Utilities
 python-dotenv>=1.0.0
 pyyaml>=6.0.1
 click>=8.1.7
+
+# Development dependencies (optional)
+# pytest>=7.4.3
+# pytest-cov>=4.1.0
+# pytest-mock>=3.12.0
+# flake8>=7.0.0
+# black>=23.12.1
+# mypy>=1.8.0

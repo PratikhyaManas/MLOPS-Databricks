@@ -2,16 +2,21 @@
 
 from setuptools import setup, find_packages
 
+with open("requirements.txt") as f:
+    requirements = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+
 setup(
     name="databricks-mlops",
     version="1.0.0",
+    description="Databricks MLOps Production Pipeline",
+    author="Your Organization",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
-    install_requires=[
-        "mlflow>=2.10.0",
-        "scikit-learn>=1.3.2",
-        "pandas>=2.1.4",
-        "numpy>=1.26.2",
-    ],
+    install_requires=requirements,
     python_requires=">=3.10",
+    classifiers=[
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "License :: OSI Approved :: MIT License",
+    ],
 )

@@ -22,6 +22,20 @@ variables:
   pythonVersion: '3.10'
   buildId: $(Build.BuildId)
   commitSha: $(Build.SourceVersion)
+  vmImage: 'ubuntu-latest'
+
+# Deployment stage template parameters
+stages_config:
+  deployments:
+    dev:
+      condition: "eq(variables['Build.SourceBranch'], 'refs/heads/develop')"
+      environment: 'development'
+    staging:
+      condition: "succeeded()"
+      environment: 'staging'
+    prod:
+      condition: "eq(variables['Build.SourceBranch'], 'refs/heads/main')"
+      environment: 'production'
 
 stages:
   # Stage 1: Test and Code Quality
@@ -39,28 +53,34 @@ stages:
               versionSpec: '$(pythonVersion)'
             displayName: 'Use Python $(pythonVersion)'
 
-          - script: |
-              python -m pip install --upgrade pip
-              pip install -r requirements.txt
-            displayName: 'Install Dependencies'
+          - task: Cache@2
+            inputs:
+              key: 'pip | "$(Agent.OS)" | requirements.txt'
+              path: $(pip.cacheDir)
+            displayName: 'Cache pip packages'
 
           - script: |
-              flake8 src/ tests/ --max-line-length=100 --ignore=E203,W503
+              python -m pip install --upgrade pip setuptools wheel
+              pip install -r requirements.txt pytest pytest-cov pytest-mock flake8 black mypy
+            displayName: 'Install Dependencies and Tools'
+
+          - script: |
+              flake8 src/ tests/ --max-line-length=100 --ignore=E203,W503 --count --statistics
             displayName: 'Lint with Flake8'
             continueOnError: true
 
           - script: |
-              black src/ tests/ --check
+              black src/ tests/ --check --diff
             displayName: 'Check Code Formatting with Black'
             continueOnError: true
 
           - script: |
-              mypy src/ --ignore-missing-imports
+              mypy src/ --ignore-missing-imports --show-error-codes
             displayName: 'Type Check with MyPy'
             continueOnError: true
 
           - script: |
-              pytest tests/ -v --cov=src --cov-report=xml --cov-report=html
+              pytest tests/ -v --cov=src --cov-report=xml --cov-report=html --cov-report=term-missing
             displayName: 'Run Unit Tests with Coverage'
 
           - task: PublishCodeCoverageResults@1
@@ -87,13 +107,18 @@ stages:
               versionSpec: '$(pythonVersion)'
             displayName: 'Use Python $(pythonVersion)'
 
-          - script: |
-              python -m pip install --upgrade pip setuptools wheel
-              pip install -r requirements.txt
-            displayName: 'Install Build Dependencies'
+          - task: Cache@2
+            inputs:
+              key: 'pip | "$(Agent.OS)" | requirements.txt'
+              path: $(pip.cacheDir)
+            displayName: 'Cache pip packages'
 
           - script: |
-              python setup.py bdist_wheel
+              python -m pip install --upgrade pip setuptools wheel build
+            displayName: 'Install Build Tools'
+
+          - script: |
+              python -m build --wheel
             displayName: 'Build Wheel Package'
 
           - task: PublishBuildArtifacts@1
@@ -112,29 +137,17 @@ stages:
       - deployment: DeployToDev
         displayName: 'Deploy to Databricks Dev'
         pool:
-          vmImage: 'ubuntu-latest'
+          vmImage: '$(vmImage)'
         environment: 'development'
-        
         strategy:
           runOnce:
             deploy:
               steps:
-                - task: UsePythonVersion@0
-                  inputs:
-                    versionSpec: '$(pythonVersion)'
-                  displayName: 'Use Python $(pythonVersion)'
-
-                - script: |
-                    python -m pip install --upgrade pip
-                    pip install databricks-cli databricks-sdk
-                  displayName: 'Install Databricks CLI'
-
-                - script: |
-                    bash deployment/deploy.sh dev
-                  env:
-                    DATABRICKS_HOST: $(DATABRICKS_HOST_DEV)
-                    DATABRICKS_TOKEN: $(DATABRICKS_TOKEN_DEV)
-                  displayName: 'Deploy to Dev Environment'
+                - template: deployment/deploy-template.yml
+                  parameters:
+                    targetEnv: 'dev'
+                    databricksHost: $(DATABRICKS_HOST_DEV)
+                    databricksToken: $(DATABRICKS_TOKEN_DEV)
 
   # Stage 4: Deploy to Staging
   - stage: DeployStaging
@@ -145,29 +158,17 @@ stages:
       - deployment: DeployToStaging
         displayName: 'Deploy to Databricks Staging'
         pool:
-          vmImage: 'ubuntu-latest'
+          vmImage: '$(vmImage)'
         environment: 'staging'
-        
         strategy:
           runOnce:
             deploy:
               steps:
-                - task: UsePythonVersion@0
-                  inputs:
-                    versionSpec: '$(pythonVersion)'
-                  displayName: 'Use Python $(pythonVersion)'
-
-                - script: |
-                    python -m pip install --upgrade pip
-                    pip install databricks-cli databricks-sdk
-                  displayName: 'Install Databricks CLI'
-
-                - script: |
-                    bash deployment/deploy.sh staging
-                  env:
-                    DATABRICKS_HOST: $(DATABRICKS_HOST_STAGING)
-                    DATABRICKS_TOKEN: $(DATABRICKS_TOKEN_STAGING)
-                  displayName: 'Deploy to Staging Environment'
+                - template: deployment/deploy-template.yml
+                  parameters:
+                    targetEnv: 'staging'
+                    databricksHost: $(DATABRICKS_HOST_STAGING)
+                    databricksToken: $(DATABRICKS_TOKEN_STAGING)
 
   # Stage 5: Deploy to Production
   - stage: DeployProd
@@ -178,26 +179,14 @@ stages:
       - deployment: DeployToProd
         displayName: 'Deploy to Databricks Production'
         pool:
-          vmImage: 'ubuntu-latest'
+          vmImage: '$(vmImage)'
         environment: 'production'
-        
         strategy:
           runOnce:
             deploy:
               steps:
-                - task: UsePythonVersion@0
-                  inputs:
-                    versionSpec: '$(pythonVersion)'
-                  displayName: 'Use Python $(pythonVersion)'
-
-                - script: |
-                    python -m pip install --upgrade pip
-                    pip install databricks-cli databricks-sdk
-                  displayName: 'Install Databricks CLI'
-
-                - script: |
-                    bash deployment/deploy.sh prod
-                  env:
-                    DATABRICKS_HOST: $(DATABRICKS_HOST_PROD)
-                    DATABRICKS_TOKEN: $(DATABRICKS_TOKEN_PROD)
-                  displayName: 'Deploy to Production Environment'
+                - template: deployment/deploy-template.yml
+                  parameters:
+                    targetEnv: 'prod'
+                    databricksHost: $(DATABRICKS_HOST_PROD)
+                    databricksToken: $(DATABRICKS_TOKEN_PROD)

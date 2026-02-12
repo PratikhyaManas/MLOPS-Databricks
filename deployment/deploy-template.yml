@@ -1,0 +1,29 @@
+# Reusable deployment template for Databricks environments
+parameters:
+  - name: targetEnv
+    type: string
+    displayName: 'Target environment (dev/staging/prod)'
+  - name: databricksHost
+    type: string
+    displayName: 'Databricks workspace URL'
+  - name: databricksToken
+    type: string
+    displayName: 'Databricks API token'
+
+steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.10'
+    displayName: 'Use Python 3.10'
+
+  - script: |
+      python -m pip install --upgrade pip
+      pip install databricks-cli databricks-sdk
+    displayName: 'Install Databricks Tools'
+
+  - script: |
+      bash deployment/deploy.sh ${{ parameters.targetEnv }}
+    env:
+      DATABRICKS_HOST: ${{ parameters.databricksHost }}
+      DATABRICKS_TOKEN: ${{ parameters.databricksToken }}
+    displayName: 'Deploy to ${{ parameters.targetEnv | upper }} Environment'
