@@ -1,0 +1,203 @@
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - src/**
+      - config/**
+      - deployment/**
+      - requirements.txt
+      - setup.py
+      - azure-pipelines.yaml
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+
+variables:
+  pythonVersion: '3.10'
+  buildId: $(Build.BuildId)
+  commitSha: $(Build.SourceVersion)
+
+stages:
+  # Stage 1: Test and Code Quality
+  - stage: Test
+    displayName: 'Test and Code Quality'
+    jobs:
+      - job: TestAndLint
+        displayName: 'Run Tests and Linting'
+        pool:
+          vmImage: 'ubuntu-latest'
+        
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '$(pythonVersion)'
+            displayName: 'Use Python $(pythonVersion)'
+
+          - script: |
+              python -m pip install --upgrade pip
+              pip install -r requirements.txt
+            displayName: 'Install Dependencies'
+
+          - script: |
+              flake8 src/ tests/ --max-line-length=100 --ignore=E203,W503
+            displayName: 'Lint with Flake8'
+            continueOnError: true
+
+          - script: |
+              black src/ tests/ --check
+            displayName: 'Check Code Formatting with Black'
+            continueOnError: true
+
+          - script: |
+              mypy src/ --ignore-missing-imports
+            displayName: 'Type Check with MyPy'
+            continueOnError: true
+
+          - script: |
+              pytest tests/ -v --cov=src --cov-report=xml --cov-report=html
+            displayName: 'Run Unit Tests with Coverage'
+
+          - task: PublishCodeCoverageResults@1
+            inputs:
+              codeCoverageTool: Cobertura
+              summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
+              reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
+            displayName: 'Publish Code Coverage'
+
+  # Stage 2: Build Artifact
+  - stage: Build
+    displayName: 'Build Python Wheel'
+    dependsOn: Test
+    condition: succeeded()
+    jobs:
+      - job: BuildWheel
+        displayName: 'Build Python Wheel'
+        pool:
+          vmImage: 'ubuntu-latest'
+        
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '$(pythonVersion)'
+            displayName: 'Use Python $(pythonVersion)'
+
+          - script: |
+              python -m pip install --upgrade pip setuptools wheel
+              pip install -r requirements.txt
+            displayName: 'Install Build Dependencies'
+
+          - script: |
+              python setup.py bdist_wheel
+            displayName: 'Build Wheel Package'
+
+          - task: PublishBuildArtifacts@1
+            inputs:
+              PathtoPublish: '$(Build.SourcesDirectory)/dist'
+              ArtifactName: 'wheel-artifact'
+              publishLocation: 'Container'
+            displayName: 'Publish Wheel Artifact'
+
+  # Stage 3: Deploy to Development
+  - stage: DeployDev
+    displayName: 'Deploy to Development'
+    dependsOn: Build
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+    jobs:
+      - deployment: DeployToDev
+        displayName: 'Deploy to Databricks Dev'
+        pool:
+          vmImage: 'ubuntu-latest'
+        environment: 'development'
+        
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: UsePythonVersion@0
+                  inputs:
+                    versionSpec: '$(pythonVersion)'
+                  displayName: 'Use Python $(pythonVersion)'
+
+                - script: |
+                    python -m pip install --upgrade pip
+                    pip install databricks-cli databricks-sdk
+                  displayName: 'Install Databricks CLI'
+
+                - script: |
+                    bash deployment/deploy.sh dev
+                  env:
+                    DATABRICKS_HOST: $(DATABRICKS_HOST_DEV)
+                    DATABRICKS_TOKEN: $(DATABRICKS_TOKEN_DEV)
+                  displayName: 'Deploy to Dev Environment'
+
+  # Stage 4: Deploy to Staging
+  - stage: DeployStaging
+    displayName: 'Deploy to Staging'
+    dependsOn: Build
+    condition: succeeded()
+    jobs:
+      - deployment: DeployToStaging
+        displayName: 'Deploy to Databricks Staging'
+        pool:
+          vmImage: 'ubuntu-latest'
+        environment: 'staging'
+        
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: UsePythonVersion@0
+                  inputs:
+                    versionSpec: '$(pythonVersion)'
+                  displayName: 'Use Python $(pythonVersion)'
+
+                - script: |
+                    python -m pip install --upgrade pip
+                    pip install databricks-cli databricks-sdk
+                  displayName: 'Install Databricks CLI'
+
+                - script: |
+                    bash deployment/deploy.sh staging
+                  env:
+                    DATABRICKS_HOST: $(DATABRICKS_HOST_STAGING)
+                    DATABRICKS_TOKEN: $(DATABRICKS_TOKEN_STAGING)
+                  displayName: 'Deploy to Staging Environment'
+
+  # Stage 5: Deploy to Production
+  - stage: DeployProd
+    displayName: 'Deploy to Production'
+    dependsOn: Build
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: DeployToProd
+        displayName: 'Deploy to Databricks Production'
+        pool:
+          vmImage: 'ubuntu-latest'
+        environment: 'production'
+        
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: UsePythonVersion@0
+                  inputs:
+                    versionSpec: '$(pythonVersion)'
+                  displayName: 'Use Python $(pythonVersion)'
+
+                - script: |
+                    python -m pip install --upgrade pip
+                    pip install databricks-cli databricks-sdk
+                  displayName: 'Install Databricks CLI'
+
+                - script: |
+                    bash deployment/deploy.sh prod
+                  env:
+                    DATABRICKS_HOST: $(DATABRICKS_HOST_PROD)
+                    DATABRICKS_TOKEN: $(DATABRICKS_TOKEN_PROD)
+                  displayName: 'Deploy to Production Environment'
