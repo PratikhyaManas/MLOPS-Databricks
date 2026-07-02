@@ -23,6 +23,7 @@ variables:
   buildId: $(Build.BuildId)
   commitSha: $(Build.SourceVersion)
   vmImage: 'ubuntu-latest'
+  enableSemgrep: 'false'
 
 # Deployment stage template parameters
 stages_config:
@@ -91,9 +92,62 @@ stages:
             displayName: 'Publish Code Coverage'
 
   # Stage 2: Build Artifact
+  - stage: SAST
+    displayName: 'Static Application Security Testing'
+    dependsOn: Test
+    condition: succeeded()
+    jobs:
+      - job: SASTScan
+        displayName: 'Run Bandit and Optional Semgrep'
+        pool:
+          vmImage: 'ubuntu-latest'
+
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '$(pythonVersion)'
+            displayName: 'Use Python $(pythonVersion)'
+
+          - script: |
+              python -m pip install --upgrade pip
+              pip install bandit
+            displayName: 'Install Bandit'
+
+          - script: |
+              bandit -r src/ -ll -ii -f json -o bandit-report.json --exit-zero
+              python - << 'PY'
+              import json
+              import sys
+
+              with open("bandit-report.json", "r", encoding="utf-8") as f:
+                  report = json.load(f)
+
+              findings = report.get("results", [])
+              print(f"Bandit findings (MEDIUM+): {len(findings)}")
+
+              if findings:
+                  sys.exit(1)
+              PY
+            displayName: 'Run Bandit (Fail on Medium+ Findings)'
+
+          - script: |
+              python -m pip install --upgrade pip
+              pip install semgrep
+              semgrep --config auto src/ --json --output semgrep-report.json --error
+            displayName: 'Run Semgrep (Optional)'
+            condition: and(succeeded(), eq(variables['enableSemgrep'], 'true'))
+
+          - task: PublishPipelineArtifact@1
+            displayName: 'Publish SAST Reports'
+            condition: always()
+            inputs:
+              targetPath: '$(System.DefaultWorkingDirectory)'
+              artifact: 'sast-reports'
+              publishLocation: 'pipeline'
+
   - stage: Build
     displayName: 'Build Python Wheel'
-    dependsOn: Test
+    dependsOn: SAST
     condition: succeeded()
     jobs:
       - job: BuildWheel
