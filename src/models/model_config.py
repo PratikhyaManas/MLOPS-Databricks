@@ -2,10 +2,18 @@
 
 import yaml
 import os
-from typing import Dict, Any
+from functools import lru_cache
+from typing import Any, Dict, Optional
 
 
-def load_config(config_path: str = None) -> Dict[str, Any]:
+def _default_config_path() -> str:
+    """Resolve default configuration path relative to this module."""
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(current_dir, "../../config/model_config.yaml")
+
+
+@lru_cache(maxsize=4)
+def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
     """Load model configuration from YAML file.
     
     Args:
@@ -15,20 +23,22 @@ def load_config(config_path: str = None) -> Dict[str, Any]:
         Dictionary containing model configuration
     """
     if config_path is None:
-        # Resolve relative to this file's location
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_path = os.path.join(current_dir, "../../config/model_config.yaml")
-    
+        config_path = _default_config_path()
+
     with open(config_path, "r") as f:
         return yaml.safe_load(f)
 
 
-# Load configuration at module level
-_config = load_config()
+def _get_section(section: str, sub_section: Optional[str] = None) -> Dict[str, Any]:
+    config = load_config()
+    if sub_section is None:
+        return config.get(section, {})
+    return config.get(section, {}).get(sub_section, {})
 
-# Export configuration with backward compatibility
-RF_CONFIG = _config.get("models", {}).get("random_forest", {})
-GB_CONFIG = _config.get("models", {}).get("gradient_boosting", {})
-XGB_CONFIG = _config.get("models", {}).get("xgboost", {})
-TRAINING_CONFIG = _config.get("training", {})
-MLFLOW_CONFIG = _config.get("mlflow", {})
+
+# Export configuration with backward compatibility.
+RF_CONFIG = _get_section("models", "random_forest")
+GB_CONFIG = _get_section("models", "gradient_boosting")
+XGB_CONFIG = _get_section("models", "xgboost")
+TRAINING_CONFIG = _get_section("training")
+MLFLOW_CONFIG = _get_section("mlflow")

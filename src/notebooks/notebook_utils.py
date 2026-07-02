@@ -1,4 +1,4 @@
-"""Common utilities for Databricks notebooks"""
+"""Common utilities for Databricks notebooks."""
 
 from pyspark.sql import DataFrame, SparkSession
 from typing import List, Dict, Any
@@ -8,7 +8,8 @@ from datetime import datetime
 
 def get_spark_session() -> SparkSession:
     """Get or create Spark session (simplified for notebooks)"""
-    return SparkSession.getActiveSession()
+    session = SparkSession.getActiveSession()
+    return session if session is not None else SparkSession.builder.getOrCreate()
 
 
 def log_notebook_run(notebook_name: str, status: str = "started", message: str = "") -> None:
@@ -19,13 +20,13 @@ def log_notebook_run(notebook_name: str, status: str = "started", message: str =
         status: Status of execution (started, completed, failed)
         message: Additional message or error details
     """
-    spark = get_spark_session()
     log_entry = {
         "notebook": notebook_name,
         "timestamp": datetime.now().isoformat(),
         "status": status,
         "message": message
     }
+    _ = log_entry  # Preserve shape for potential downstream structured logger integration.
     print(f"[{status.upper()}] {notebook_name}: {message}")
 
 
@@ -54,12 +55,14 @@ def get_null_counts(df: DataFrame) -> Dict[str, int]:
     Returns:
         Dictionary mapping column names to null counts
     """
-    null_counts = {}
-    for col in df.columns:
-        count = df.filter(F.col(col).isNull()).count()
-        if count > 0:
-            null_counts[col] = count
-    return null_counts
+    if not df.columns:
+        return {}
+
+    # Compute all null counts in one aggregation to avoid repeated full scans.
+    counts_row = df.select([
+        F.sum(F.col(col).isNull().cast("int")).alias(col) for col in df.columns
+    ]).collect()[0]
+    return {col: int(counts_row[col]) for col in df.columns if counts_row[col]}
 
 
 def create_delta_table(df: DataFrame, catalog: str, schema: str, table_name: str, 

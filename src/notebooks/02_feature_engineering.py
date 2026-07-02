@@ -8,6 +8,7 @@
 import pyspark.sql.functions as F
 from pyspark.sql import Window
 from pyspark.sql.types import *
+from delta.tables import DeltaTable
 
 # COMMAND ----------
 
@@ -23,9 +24,62 @@ schema = dbutils.widgets.get("schema")
 # COMMAND ----------
 
 raw_table = f"{catalog}.{schema}.raw_data"
+features_table = f"{catalog}.{schema}.ml_features"
 df = spark.table(raw_table)
 
-print(f"Loaded {df.count():,} rows from {raw_table}")
+raw_count = df.count()
+print(f"Loaded {raw_count:,} rows from {raw_table}")
+
+feature_contract = {
+    "required_columns": ["customer_id", "timestamp", "amount", "category", "target"],
+    "allowed_categories": ["A", "B"],
+    "amount_min": 0.0,
+    "max_null_ratio": 0.2
+}
+
+missing_columns = set(feature_contract["required_columns"]) - set(df.columns)
+if missing_columns:
+    raise ValueError(f"Missing required columns for feature engineering: {missing_columns}")
+
+latest_feature_ts = None
+if spark.catalog.tableExists(features_table):
+    latest_feature_ts = spark.table(features_table).agg(F.max("source_timestamp").alias("max_ts")).collect()[0]["max_ts"]
+
+if latest_feature_ts is not None:
+    df = df.filter(F.col("timestamp") > F.lit(latest_feature_ts))
+    print(f"Running incremental feature engineering from watermark: {latest_feature_ts}")
+else:
+    print("Running full feature engineering (no existing watermark found)")
+
+incremental_count = df.count()
+if incremental_count == 0:
+    import json
+    result = {
+        "status": "SUCCESS",
+        "features_table": features_table,
+        "feature_count": 0,
+        "row_count": 0,
+        "mode": "incremental",
+        "message": "No new rows to feature-engineer"
+    }
+    dbutils.notebook.exit(json.dumps(result))
+
+null_ratio_row = df.select([
+    F.avg(F.col(c).isNull().cast("double")).alias(c) for c in feature_contract["required_columns"]
+]).collect()[0]
+
+null_ratio = {c: float(null_ratio_row[c]) for c in feature_contract["required_columns"]}
+for col_name, ratio in null_ratio.items():
+    if ratio > feature_contract["max_null_ratio"]:
+        raise ValueError(f"Feature contract failed for '{col_name}': null ratio {ratio:.4f} exceeds {feature_contract['max_null_ratio']:.4f}")
+
+invalid_amount_count = df.filter(F.col("amount") < F.lit(feature_contract["amount_min"])).count()
+if invalid_amount_count > 0:
+    raise ValueError(f"Feature contract failed: found {invalid_amount_count} rows with negative amount")
+
+invalid_category_count = df.filter(~F.col("category").isin(feature_contract["allowed_categories"])).count()
+if invalid_category_count > 0:
+    raise ValueError(f"Feature contract failed: found {invalid_category_count} rows with invalid category values")
 
 # COMMAND ----------
 
@@ -38,6 +92,7 @@ print(f"Loaded {df.count():,} rows from {raw_table}")
 window_spec = Window.partitionBy("customer_id").orderBy("timestamp")
 
 df_features = df \
+    .withColumn("source_timestamp", F.col("timestamp")) \
     .withColumn("days_since_last_event", 
                 F.datediff(F.current_date(), F.col("timestamp"))) \
     .withColumn("event_count", F.count("*").over(window_spec)) \
@@ -68,6 +123,7 @@ df_features = df_features \
 
 feature_columns = [
     "customer_id",
+    "source_timestamp",
     "days_since_last_event",
     "event_count",
     "avg_amount",
@@ -85,7 +141,8 @@ df_final = df_features.select(feature_columns)
 # Remove nulls
 df_final = df_final.na.drop()
 
-print(f"Final features: {df_final.count():,} rows, {len(feature_columns)} columns")
+final_row_count = df_final.count()
+print(f"Final features: {final_row_count:,} rows, {len(feature_columns)} columns")
 
 # COMMAND ----------
 
@@ -94,12 +151,20 @@ print(f"Final features: {df_final.count():,} rows, {len(feature_columns)} column
 
 # COMMAND ----------
 
-features_table = f"{catalog}.{schema}.ml_features"
+if spark.catalog.tableExists(features_table):
+    delta_features = DeltaTable.forName(spark, features_table)
+    delta_features.alias("t").merge(
+        df_final.alias("s"),
+        "t.customer_id = s.customer_id AND t.source_timestamp = s.source_timestamp"
+    ).whenMatchedUpdateAll().whenNotMatchedInsertAll().execute()
+else:
+    df_final.write \
+        .format("delta") \
+        .mode("overwrite") \
+        .saveAsTable(features_table)
 
-df_final.write \
-    .format("delta") \
-    .mode("overwrite") \
-    .saveAsTable(features_table)
+# Optimize feature table for common lookup and join patterns.
+spark.sql(f"OPTIMIZE {features_table} ZORDER BY (customer_id, source_timestamp)")
 
 print(f"Features saved to: {features_table}")
 
@@ -111,7 +176,16 @@ result = {
     "status": "SUCCESS",
     "features_table": features_table,
     "feature_count": len(feature_columns),
-    "row_count": df_final.count()
+    "row_count": final_row_count,
+    "mode": "incremental" if latest_feature_ts is not None else "full",
+    "quality_gates": {
+        "null_ratio": null_ratio,
+        "invalid_amount_count": invalid_amount_count,
+        "invalid_category_count": invalid_category_count
+    },
+    "storage_optimization": {
+        "zorder_by": ["customer_id", "source_timestamp"]
+    }
 }
 
 dbutils.notebook.exit(json.dumps(result))

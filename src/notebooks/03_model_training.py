@@ -8,10 +8,8 @@
 import mlflow
 import mlflow.sklearn
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import *
-import pandas as pd
-import numpy as np
 
 # COMMAND ----------
 
@@ -61,6 +59,29 @@ X_train, X_test, y_train, y_test = train_test_split(
 print(f"Training set: {X_train.shape}")
 print(f"Test set: {X_test.shape}")
 
+
+def train_and_log_model(model, run_name, X_train, y_train, X_test, y_test):
+    """Train model and log standardized metrics/artifacts to MLflow."""
+    with mlflow.start_run(run_name=run_name) as run:
+        model.fit(X_train, y_train)
+
+        y_pred = model.predict(X_test)
+        y_pred_proba = model.predict_proba(X_test)
+
+        metrics = {
+            "accuracy": accuracy_score(y_test, y_pred),
+            "precision": precision_score(y_test, y_pred, average='weighted', zero_division=0),
+            "recall": recall_score(y_test, y_pred, average='weighted', zero_division=0),
+            "f1_score": f1_score(y_test, y_pred, average='weighted', zero_division=0),
+            "roc_auc": roc_auc_score(y_test, y_pred_proba, multi_class='ovr')
+        }
+
+        mlflow.log_metrics(metrics)
+        mlflow.sklearn.log_model(model, "model", registered_model_name=None)
+
+        print(f"{run_name} - F1: {metrics['f1_score']:.4f}")
+        return run.info.run_id
+
 # COMMAND ----------
 
 # MAGIC %md
@@ -68,41 +89,22 @@ print(f"Test set: {X_test.shape}")
 
 # COMMAND ----------
 
-with mlflow.start_run(run_name="RandomForest") as run:
-    # Model
-    rf_model = RandomForestClassifier(
-        n_estimators=100,
-        max_depth=10,
-        min_samples_split=5,
-        random_state=42,
-        n_jobs=-1
-    )
-    
-    # Train
-    rf_model.fit(X_train, y_train)
-    
-    # Predictions  
-    y_pred = rf_model.predict(X_test)
-    y_pred_proba = rf_model.predict_proba(X_test)
-    
-    # Metrics
-    metrics = {
-        "accuracy": accuracy_score(y_test, y_pred),
-        "precision": precision_score(y_test, y_pred, average='weighted'),
-        "recall": recall_score(y_test, y_pred, average='weighted'),
-        "f1_score": f1_score(y_test, y_pred, average='weighted'),
-        "roc_auc": roc_auc_score(y_test, y_pred_proba, multi_class='ovr')
-    }
-    
-    # Log metrics
-    mlflow.log_metrics(metrics)
-    
-    # Log model
-    mlflow.sklearn.log_model(rf_model, "model", registered_model_name=None)
-    
-    rf_run_id = run.info.run_id
-    
-    print(f"Random Forest - F1: {metrics['f1_score']:.4f}")
+rf_model = RandomForestClassifier(
+    n_estimators=100,
+    max_depth=10,
+    min_samples_split=5,
+    random_state=42,
+    n_jobs=-1
+)
+
+rf_run_id = train_and_log_model(
+    rf_model,
+    "RandomForest",
+    X_train,
+    y_train,
+    X_test,
+    y_test
+)
 
 # COMMAND ----------
 
@@ -111,33 +113,21 @@ with mlflow.start_run(run_name="RandomForest") as run:
 
 # COMMAND ----------
 
-with mlflow.start_run(run_name="GradientBoosting") as run:
-    gb_model = GradientBoostingClassifier(
-        n_estimators=100,
-        learning_rate=0.1,
-        max_depth=5,
-        random_state=42
-    )
-    
-    gb_model.fit(X_train, y_train)
-    
-    y_pred = gb_model.predict(X_test)
-    y_pred_proba = gb_model.predict_proba(X_test)
-    
-    metrics = {
-        "accuracy": accuracy_score(y_test, y_pred),
-        "precision": precision_score(y_test, y_pred, average='weighted'),
-        "recall": recall_score(y_test, y_pred, average='weighted'),
-        "f1_score": f1_score(y_test, y_pred, average='weighted'),
-        "roc_auc": roc_auc_score(y_test, y_pred_proba, multi_class='ovr')
-    }
-    
-    mlflow.log_metrics(metrics)
-    mlflow.sklearn.log_model(gb_model, "model", registered_model_name=None)
-    
-    gb_run_id = run.info.run_id
-    
-    print(f"Gradient Boosting - F1: {metrics['f1_score']:.4f}")
+gb_model = GradientBoostingClassifier(
+    n_estimators=100,
+    learning_rate=0.1,
+    max_depth=5,
+    random_state=42
+)
+
+gb_run_id = train_and_log_model(
+    gb_model,
+    "GradientBoosting",
+    X_train,
+    y_train,
+    X_test,
+    y_test
+)
 
 # COMMAND ----------
 
