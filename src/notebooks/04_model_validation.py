@@ -5,10 +5,17 @@
 
 # COMMAND ----------
 
-import mlflow
-from sklearn.metrics import *
-import pandas as pd
 import json
+
+import mlflow
+import pandas as pd
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+)
 
 # COMMAND ----------
 
@@ -19,7 +26,7 @@ schema = dbutils.widgets.get("schema")
 
 # COMMAND ----------
 
-# MAGIC %md  
+# MAGIC %md
 # MAGIC ## Load Best Model
 
 # COMMAND ----------
@@ -32,7 +39,7 @@ experiment = mlflow.get_experiment_by_name(experiment_path)
 runs = client.search_runs(
     experiment_ids=[experiment.experiment_id],
     order_by=["metrics.f1_score DESC"],
-    max_results=1
+    max_results=1,
 )
 
 best_run = runs[0]
@@ -67,9 +74,9 @@ y_pred_proba = model.predict_proba(X_val)
 # Metrics
 val_metrics = {
     "val_accuracy": accuracy_score(y_val, y_pred),
-    "val_f1_score": f1_score(y_val, y_pred, average='weighted'),
-    "val_precision": precision_score(y_val, y_pred, average='weighted'),
-    "val_recall": recall_score(y_val, y_pred, average='weighted')
+    "val_f1_score": f1_score(y_val, y_pred, average="weighted"),
+    "val_precision": precision_score(y_val, y_pred, average="weighted"),
+    "val_recall": recall_score(y_val, y_pred, average="weighted"),
 }
 
 print("Validation Metrics:")
@@ -87,10 +94,12 @@ for metric, value in val_metrics.items():
 validation_passed = val_metrics["val_f1_score"] >= threshold
 
 if not validation_passed:
-    raise ValueError(f"Model F1 score {val_metrics['val_f1_score']:.4f} below threshold {threshold}")
+    raise ValueError(
+        f"Model F1 score {val_metrics['val_f1_score']:.4f} "
+        f"below threshold {threshold}"
+    )
 
 # Check for bias
-from sklearn.metrics import confusion_matrix
 cm = confusion_matrix(y_val, y_pred)
 
 # Check class balance in predictions
@@ -106,7 +115,7 @@ result = {
     "status": "SUCCESS",
     "validation_passed": validation_passed,
     "val_f1_score": val_metrics["val_f1_score"],
-    "run_id": best_run.info.run_id
+    "run_id": best_run.info.run_id,
 }
 
 dbutils.notebook.exit(json.dumps(result))

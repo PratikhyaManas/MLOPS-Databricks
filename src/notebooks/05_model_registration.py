@@ -5,9 +5,10 @@
 
 # COMMAND ----------
 
+import json
+
 import mlflow
 from mlflow.tracking import MlflowClient
-import json
 
 # COMMAND ----------
 
@@ -28,7 +29,7 @@ experiment = mlflow.get_experiment_by_name(experiment_path)
 runs = client.search_runs(
     experiment_ids=[experiment.experiment_id],
     order_by=["metrics.f1_score DESC"],
-    max_results=1
+    max_results=1,
 )
 
 best_run = runs[0]
@@ -62,7 +63,10 @@ print(f"Version: {model_details.version}")
 client.update_model_version(
     name=model_name,
     version=model_details.version,
-    description=f"Model from run {run_id}. F1 Score: {best_run.data.metrics['f1_score']:.4f}"
+    description=(
+        f"Model from run {run_id}. "
+        f"F1 Score: {best_run.data.metrics['f1_score']:.4f}"
+    ),
 )
 
 # Add tags
@@ -70,14 +74,14 @@ client.set_model_version_tag(
     name=model_name,
     version=model_details.version,
     key="validation_status",
-    value="passed"
+    value="passed",
 )
 
 client.set_model_version_tag(
     name=model_name,
     version=model_details.version,
     key="f1_score",
-    value=str(best_run.data.metrics['f1_score'])
+    value=str(best_run.data.metrics["f1_score"]),
 )
 
 # COMMAND ----------
@@ -92,7 +96,7 @@ client.transition_model_version_stage(
     name=model_name,
     version=model_details.version,
     stage="Staging",
-    archive_existing_versions=False
+    archive_existing_versions=False,
 )
 
 print(f"Model version {model_details.version} moved to Staging")
@@ -113,7 +117,7 @@ result = {
     "model_name": model_name,
     "model_version": model_details.version,
     "stage": "Staging",
-    "run_id": run_id
+    "run_id": run_id,
 }
 
 dbutils.notebook.exit(json.dumps(result))

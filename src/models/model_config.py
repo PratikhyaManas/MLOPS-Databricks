@@ -1,9 +1,10 @@
-"""Model configuration loader"""
+"""Model configuration loader."""
 
-import yaml
 import os
 from functools import lru_cache
 from typing import Any, Dict, Optional
+
+import yaml
 
 
 def _default_config_path() -> str:
@@ -15,10 +16,10 @@ def _default_config_path() -> str:
 @lru_cache(maxsize=4)
 def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
     """Load model configuration from YAML file.
-    
+
     Args:
         config_path: Path to config file. Defaults to config/model_config.yaml
-        
+
     Returns:
         Dictionary containing model configuration
     """
@@ -29,7 +30,9 @@ def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
         return yaml.safe_load(f)
 
 
-def _get_section(section: str, sub_section: Optional[str] = None) -> Dict[str, Any]:
+def _get_section(
+    section: str, sub_section: Optional[str] = None
+) -> Dict[str, Any]:
     config = load_config()
     if sub_section is None:
         return config.get(section, {})

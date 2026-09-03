@@ -5,11 +5,19 @@
 
 # COMMAND ----------
 
+import json
+
 import mlflow
 import mlflow.sklearn
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+from sklearn.metrics import (
+    accuracy_score,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import *
 
 # COMMAND ----------
 
@@ -70,10 +78,16 @@ def train_and_log_model(model, run_name, X_train, y_train, X_test, y_test):
 
         metrics = {
             "accuracy": accuracy_score(y_test, y_pred),
-            "precision": precision_score(y_test, y_pred, average='weighted', zero_division=0),
-            "recall": recall_score(y_test, y_pred, average='weighted', zero_division=0),
-            "f1_score": f1_score(y_test, y_pred, average='weighted', zero_division=0),
-            "roc_auc": roc_auc_score(y_test, y_pred_proba, multi_class='ovr')
+            "precision": precision_score(
+                y_test, y_pred, average="weighted", zero_division=0
+            ),
+            "recall": recall_score(
+                y_test, y_pred, average="weighted", zero_division=0
+            ),
+            "f1_score": f1_score(
+                y_test, y_pred, average="weighted", zero_division=0
+            ),
+            "roc_auc": roc_auc_score(y_test, y_pred_proba, multi_class="ovr"),
         }
 
         mlflow.log_metrics(metrics)
@@ -81,6 +95,7 @@ def train_and_log_model(model, run_name, X_train, y_train, X_test, y_test):
 
         print(f"{run_name} - F1: {metrics['f1_score']:.4f}")
         return run.info.run_id
+
 
 # COMMAND ----------
 
@@ -94,16 +109,11 @@ rf_model = RandomForestClassifier(
     max_depth=10,
     min_samples_split=5,
     random_state=42,
-    n_jobs=-1
+    n_jobs=-1,
 )
 
 rf_run_id = train_and_log_model(
-    rf_model,
-    "RandomForest",
-    X_train,
-    y_train,
-    X_test,
-    y_test
+    rf_model, "RandomForest", X_train, y_train, X_test, y_test
 )
 
 # COMMAND ----------
@@ -114,19 +124,11 @@ rf_run_id = train_and_log_model(
 # COMMAND ----------
 
 gb_model = GradientBoostingClassifier(
-    n_estimators=100,
-    learning_rate=0.1,
-    max_depth=5,
-    random_state=42
+    n_estimators=100, learning_rate=0.1, max_depth=5, random_state=42
 )
 
 gb_run_id = train_and_log_model(
-    gb_model,
-    "GradientBoosting",
-    X_train,
-    y_train,
-    X_test,
-    y_test
+    gb_model, "GradientBoosting", X_train, y_train, X_test, y_test
 )
 
 # COMMAND ----------
@@ -143,7 +145,7 @@ experiment = mlflow.get_experiment_by_name(experiment_path)
 runs = client.search_runs(
     experiment_ids=[experiment.experiment_id],
     order_by=["metrics.f1_score DESC"],
-    max_results=1
+    max_results=1,
 )
 
 best_run = runs[0]
@@ -154,13 +156,11 @@ print(f"Best F1 Score: {best_run.data.metrics['f1_score']:.4f}")
 
 # COMMAND ----------
 
-import json
-
 result = {
     "status": "SUCCESS",
     "best_run_id": best_run.info.run_id,
-    "best_f1_score": best_run.data.metrics['f1_score'],
-    "model_uri": best_model_uri
+    "best_f1_score": best_run.data.metrics["f1_score"],
+    "model_uri": best_model_uri,
 }
 
 dbutils.notebook.exit(json.dumps(result))
