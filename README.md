@@ -1,26 +1,26 @@
 # MLOPS Databricks
 
-A compact Databricks MLOps project for data processing, model training, validation, and batch inference. The repository is structured to run locally with `uv` and ships with unit tests and a Databricks Asset Bundle configuration for deployment.
+This repository contains a compact Databricks MLOps workflow for data preparation, model training, validation, registration, and batch inference. It uses `uv` for Python environment and dependency management, `pytest` for local validation, and Databricks Asset Bundles for deployment.
 
 ## Overview
 
-This project includes:
+Key capabilities:
 
-- Spark-based data utilities for cleaning and auditing data
-- ML utilities for metric logging with MLflow
-- YAML-backed model configuration loading
-- Databricks notebook templates for ingestion, feature engineering, training, validation, registration, and batch inference
-- A local testing setup using `pytest` and coverage
+- Spark-based data cleaning and auditing utilities
+- ML metric logging with MLflow
+- YAML-driven model configuration
+- Databricks notebook pipeline for ingestion, feature engineering, training, validation, registration, and inference
+- Local test coverage and dry-run validation
 
-## Repository structure
+## Project structure
 
 ```text
 .
-├── databricks.yml               # Databricks Asset Bundle config
-├── pyproject.toml               # Project metadata and dependency config
+├── databricks.yml               # Databricks bundle configuration
+├── pyproject.toml               # Single dependency and tool source of truth
 ├── README.md                    # Project documentation
 ├── config/
-│   └── model_config.yaml        # Model and training defaults
+│   └── model_config.yaml        # Default model and training settings
 ├── deployment/
 │   ├── deploy.sh
 │   └── rollback.sh
@@ -44,22 +44,19 @@ This project includes:
 │   ├── test_data_utils.py
 │   ├── test_ml_utils.py
 │   └── test_model_config.py
-├── .venv/                       # Created by uv
-├── coverage.xml
-├── htmlcov/
-└── .gitignore
+├── htmlcov/                     # Coverage reports
+├── coverage.xml                 # Coverage output
+└── .venv/                       # uv virtual environment
 ```
 
 ## Prerequisites
 
 - `uv` installed
-- Python 3.10+ (the project was verified with Python 3.12 in this environment)
-- Java 11 for local PySpark execution on Windows
-- Databricks CLI and workspace access for deployment targets
+- Python 3.10+ (verified with 3.12 locally)
+- Java 11 for local PySpark runs on Windows
+- Databricks CLI and workspace access for deployment
 
-### Windows local Spark requirement
-
-For local Spark runs on Windows, set:
+### Recommended local Spark setup on Windows
 
 ```powershell
 $env:JAVA_HOME = 'C:\Program Files\Java\jdk-11'
@@ -68,7 +65,7 @@ $env:PYSPARK_PYTHON = (Resolve-Path .\.venv\Scripts\python.exe).Path
 $env:PYSPARK_DRIVER_PYTHON = $env:PYSPARK_PYTHON
 ```
 
-This was required to make the local Spark dry run work correctly in this environment.
+This is required for the Spark local dry run and DataFrame creation to work reliably on Windows.
 
 ## Quick start
 
@@ -78,13 +75,13 @@ cd MLOPS-Databricks
 uv sync --extra dev
 ```
 
-Activate the virtual environment when needed:
+Activate the environment when needed:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
 ```
 
-## Run tests
+## Testing
 
 ```powershell
 $env:JAVA_HOME = 'C:\Program Files\Java\jdk-11'
@@ -94,11 +91,9 @@ $env:PYSPARK_DRIVER_PYTHON = $env:PYSPARK_PYTHON
 uv run pytest -q
 ```
 
-Verified result in this repo: 15 tests passed with 83.33% coverage.
+Verified result for this repo: 15 tests passed with 83.33% coverage.
 
-## Dry run check
-
-This minimal Spark check verifies the local runtime is healthy:
+## Local Spark dry run
 
 ```powershell
 $env:JAVA_HOME = 'C:\Program Files\Java\jdk-11'
@@ -110,14 +105,19 @@ uv run python -c "from pyspark.sql import SparkSession; s = SparkSession.builder
 
 ## Databricks bundle usage
 
-Validate and deploy the project bundle with Databricks CLI:
+Validate the bundle:
 
 ```bash
 databricks bundle validate -t dev
+```
+
+Deploy the bundle:
+
+```bash
 databricks bundle deploy -t dev
 ```
 
-Run jobs defined in the bundle:
+Run the jobs defined in the bundle:
 
 ```bash
 databricks bundle run ml_training_pipeline -t dev
@@ -131,30 +131,59 @@ databricks bundle run batch_inference_pipeline -t dev
 2. Feature engineering
    - Creates derived features for training
 3. Model training
-   - Trains the configured model and logs metrics in MLflow
+   - Trains the selected model and logs metrics in MLflow
 4. Model validation
-   - Checks performance thresholds before promotion
+   - Evaluates model quality against thresholds
 5. Model registration
-   - Registers the validated model in MLflow Model Registry
+   - Registers the model in MLflow Model Registry
 6. Batch inference
    - Scores new data in batch mode
 
 ## Configuration
 
-The training and model settings are split across:
+Model and training settings are centralized in:
 
 - [config/model_config.yaml](config/model_config.yaml)
 - [src/models/model_config.py](src/models/model_config.py)
 
-## Notes
+The repository keeps a single source of truth for Python dependencies and tooling in [pyproject.toml](pyproject.toml).
 
-- The project prefers `uv` as the package manager and environment manager.
-- The repo was cleaned up to remove duplicated dependency/tooling metadata and now keeps a single source of truth in [pyproject.toml](pyproject.toml).
-- Local Windows execution may require Java 11 and `PYSPARK_PYTHON`/`PYSPARK_DRIVER_PYTHON` to be set explicitly for PySpark worker processes.
+## Dependency and tooling conventions
+
+- Python environment and package installation: `uv`
+- Test runner: `pytest`
+- Coverage: configured in [pyproject.toml](pyproject.toml)
+- Spark runtime: PySpark with Java 11 on Windows
+- Databricks packaging: `databricks.yml` + bundle artifacts
+
+## Contributing
+
+1. Create a feature branch.
+2. Keep changes scoped and documented.
+3. Add or update tests for behavior changes.
+4. Run the local test suite before submitting a PR.
+5. Keep docs in sync with code changes.
+
+Example commands:
+
+```powershell
+uv run pytest -q
+uv run pytest tests/test_data_utils.py -q
+uv run flake8 src tests
+```
+
+## Optimization notes
+
+This repo was simplified to reduce repetition and keep one authoritative project config:
+
+- consolidated dependency metadata into [pyproject.toml](pyproject.toml)
+- removed duplicated install/setup metadata
+- standardized test configuration and coverage thresholds
+- kept a single operational README as the canonical documentation source
 
 ## References
 
 - [Databricks Asset Bundles](https://docs.databricks.com/dev-tools/bundles/)
-- [MLflow](https://mlflow.org/docs/latest/)
-- [Spark on Windows](https://spark.apache.org/)
+- [MLflow Documentation](https://mlflow.org/docs/latest/)
+- [PySpark](https://spark.apache.org/docs/latest/api/python/)
 - [Delta Lake](https://delta.io/)
