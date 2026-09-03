@@ -4,6 +4,8 @@ This repository contains a compact Databricks MLOps workflow for data preparatio
 
 ## Overview
 
+![MLOPS Databricks architecture](docs/architecture.svg)
+
 Key capabilities:
 
 - Spark-based data cleaning and auditing utilities
