@@ -42,7 +42,7 @@ databricks_mlops_bundle/
 │   └── rollback.sh
 ├── .github/workflows/          # CI/CD workflows
 │   └── ci-cd.yml
-└── requirements.txt            # Python dependencies
+├── pyproject.toml             # Python dependencies and tool configuration
 ```
 
 ## 🚀 Quick Start
@@ -70,12 +70,12 @@ databricks configure --token
 git clone <repository-url>
 cd databricks_mlops_bundle
 
-# Install dependencies
-pip install -r requirements.txt
+# Create the project environment and install dependencies
+uv sync --extra dev
 
-# Copy environment file
-cp .env.example .env
-# Edit .env with your configuration
+# Activate the environment for local commands
+# On PowerShell: .venv\Scripts\Activate.ps1
+# On bash/zsh: source .venv/bin/activate
 ```
 
 ### 3. Validate Bundle
@@ -187,14 +187,14 @@ training:
 ## 🧪 Testing
 
 ```bash
-# Run all tests
-pytest tests/ -v
+# Run all tests with the project config
+uv run pytest
 
-# Run with coverage
-pytest tests/ --cov=src --cov-report=html
+# Run with coverage explicitly
+uv run pytest --cov=src --cov-report=term-missing:skip-covered --cov-report=html
 
-# Run specific test
-pytest tests/test_data_utils.py
+# Run a single test file
+uv run pytest tests/test_data_utils.py
 ```
 
 ## 🔄 CI/CD

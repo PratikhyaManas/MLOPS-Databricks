@@ -68,10 +68,11 @@ class TestHandleMissingValues:
     
     @pytest.mark.unit
     def test_handle_missing_invalid_strategy(self, spark):
-        """Test invalid strategy raises error"""
-        data = [(1, None)]
-        df = spark.createDataFrame(data, ["id", "value"])
-        
+        """Test invalid strategy raises error."""
+        data = [(1, "a"), (2, "b")]
+        schema = "id INT, value STRING"
+        df = spark.createDataFrame(data, schema=schema)
+
         with pytest.raises(ValueError, match="Unknown strategy"):
             handle_missing_values(df, strategy="invalid")
 

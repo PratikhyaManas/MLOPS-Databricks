@@ -15,7 +15,7 @@ workspace:
 artifacts:
   default:
     type: whl
-    build: python setup.py bdist_wheel
+    build: uv build --wheel
     path: .
 
 # Variable definitions
