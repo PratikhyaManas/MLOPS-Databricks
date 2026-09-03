@@ -1,6 +1,6 @@
 <svg width="1450" height="780" viewBox="0 0 1450 780" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">MLOPS Databricks Azure-Style Architecture</title>
-  <desc id="desc">A premium Azure-inspired MLOps architecture diagram showing ingestion, feature engineering, training, validation, registration, and batch inference using Databricks and MLflow.</desc>
+  <desc id="desc">A clean Azure-inspired MLOps architecture diagram showing raw data ingestion, feature engineering, model training, validation, registration, and batch inference.</desc>
 
   <defs>
     <linearGradient id="bg" x1="0" x2="1">
@@ -9,7 +9,7 @@
     </linearGradient>
     <linearGradient id="panel" x1="0" x2="1">
       <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#f6faff"/>
+      <stop offset="100%" stop-color="#f8fbff"/>
     </linearGradient>
     <linearGradient id="blue" x1="0" x2="1">
       <stop offset="0%" stop-color="#dbeafe"/>
@@ -48,8 +48,8 @@
       .cardText { font: 600 13px 'Segoe UI', Arial, sans-serif; fill: #334155; }
       .tiny { font: 700 11px 'Segoe UI', Arial, sans-serif; fill: #475569; }
       .badge { font: 700 11px 'Segoe UI', Arial, sans-serif; fill: #1e293b; }
-      .pipe { stroke: #64748b; stroke-width: 2.8; fill: none; marker-end: url(#arrow); }
-      .line { stroke: #94a3b8; stroke-width: 2.2; fill: none; }
+      .pipe { stroke: #64748b; stroke-width: 2.8; fill: none; marker-end: url(#arrow); stroke-linecap: round; stroke-linejoin: round; }
+      .line { stroke: #94a3b8; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
       .chip { fill: #ffffff; stroke: #dbe7f6; stroke-width: 1.5; }
       .card { filter: url(#shadow); }
     </style>
@@ -125,6 +125,10 @@
   <path d="M756 202 H790" class="pipe"/>
   <path d="M998 202 H1035" class="pipe"/>
 
+  <path d="M894 265 L894 305 L570 305 L570 345" class="line"/>
+  <path d="M894 305 L760 305 L760 345" class="line"/>
+  <path d="M894 305 L1110 305 L1110 345" class="line"/>
+
   <g class="card" transform="translate(300 345)">
     <rect x="0" y="0" width="272" height="154" rx="20" fill="url(#blue)" stroke="#60a5fa" stroke-width="2"/>
     <circle cx="44" cy="38" r="20" fill="#ffffff" opacity="0.96"/>
@@ -186,12 +190,7 @@
     <path d="M990 627 H1020" class="line"/>
   </g>
 
-  <path d="M1170 250 L1170 318 L1048 318" class="line"/>
-  <path d="M870 250 L870 318 L760 318" class="line"/>
-  <path d="M945 250 L945 318 L700 318" class="line"/>
-  <path d="M695 250 L695 318 L515 318" class="line"/>
-
-  <g transform="translate(1220 160)">
+  <g transform="translate(1205 160)">
     <rect x="0" y="0" width="130" height="90" rx="15" fill="#ffffff" stroke="#dbe7f6" stroke-width="2"/>
     <rect x="16" y="18" width="98" height="16" rx="8" fill="#dbeafe"/>
     <circle cx="28" cy="58" r="10" fill="#0ea5e9"/>
