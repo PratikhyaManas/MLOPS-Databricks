@@ -1,0 +1,85 @@
+<svg width="1200" height="260" viewBox="0 0 1200 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="bannerTitle bannerDesc">
+  <title id="bannerTitle">MLOps Databricks</title>
+  <desc id="bannerDesc">Banner for the MLOps Databricks repository: end-to-end MLOps pipeline with Spark, MLflow and Databricks Asset Bundles.</desc>
+
+  <defs>
+    <linearGradient id="bannerBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="55%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#312e81"/>
+    </linearGradient>
+    <linearGradient id="accentBar" x1="0" x2="1">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#f472b6"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="orb1" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#f97316" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#f97316" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orb2" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="dotgrid" width="26" height="26" patternUnits="userSpaceOnUse">
+      <circle cx="1.5" cy="1.5" r="1.5" fill="#94a3b8" opacity="0.18"/>
+    </pattern>
+    <style>
+      .brand { font: 800 46px 'Segoe UI', Arial, sans-serif; fill: #f8fafc; }
+      .brandAccent { fill: #38bdf8; }
+      .tag { font: 600 17px 'Segoe UI', Arial, sans-serif; fill: #cbd5e1; }
+      .chip { font: 700 12px 'Segoe UI', Arial, sans-serif; fill: #e2e8f0; letter-spacing: 0.04em; }
+      .chipBg { fill: #1e293b; stroke: #475569; stroke-width: 1; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="260" fill="url(#bannerBg)"/>
+  <rect width="1200" height="260" fill="url(#dotgrid)"/>
+  <circle cx="1080" cy="60" r="140" fill="url(#orb1)"/>
+  <circle cx="120" cy="220" r="160" fill="url(#orb2)"/>
+  <rect x="0" y="0" width="1200" height="6" fill="url(#accentBar)"/>
+  <rect x="0" y="254" width="1200" height="6" fill="url(#accentBar)"/>
+
+  <!-- Pipeline glyph: connected nodes representing the ML pipeline -->
+  <g transform="translate(70,150)" stroke-linecap="round">
+    <line x1="0" y1="0" x2="70" y2="-28" stroke="#64748b" stroke-width="3"/>
+    <line x1="70" y1="-28" x2="140" y2="10" stroke="#64748b" stroke-width="3"/>
+    <line x1="140" y1="10" x2="210" y2="-18" stroke="#64748b" stroke-width="3"/>
+    <line x1="210" y1="-18" x2="280" y2="14" stroke="#64748b" stroke-width="3"/>
+    <circle cx="0" cy="0" r="10" fill="#38bdf8"/>
+    <circle cx="70" cy="-28" r="10" fill="#a78bfa"/>
+    <circle cx="140" cy="10" r="10" fill="#f472b6"/>
+    <circle cx="210" cy="-18" r="10" fill="#34d399"/>
+    <circle cx="280" cy="14" r="12" fill="url(#glow)" stroke="#fbbf24" stroke-width="3"/>
+  </g>
+
+  <text x="70" y="110" class="brand">ML<tspan class="brandAccent">Ops</tspan> Databricks</text>
+  <text x="72" y="140" class="tag">Data → Features → Training → Validation → Registry → Inference</text>
+
+  <g transform="translate(70,180)">
+    <g>
+      <rect class="chipBg" x="0" y="0" width="88" height="28" rx="14"/>
+      <text x="16" y="19" class="chip">SPARK</text>
+    </g>
+    <g transform="translate(98,0)">
+      <rect class="chipBg" x="0" y="0" width="96" height="28" rx="14"/>
+      <text x="16" y="19" class="chip">MLFLOW</text>
+    </g>
+    <g transform="translate(204,0)">
+      <rect class="chipBg" x="0" y="0" width="126" height="28" rx="14"/>
+      <text x="16" y="19" class="chip">DELTA LAKE</text>
+    </g>
+    <g transform="translate(340,0)">
+      <rect class="chipBg" x="0" y="0" width="150" height="28" rx="14"/>
+      <text x="16" y="19" class="chip">ASSET BUNDLES</text>
+    </g>
+    <g transform="translate(500,0)">
+      <rect class="chipBg" x="0" y="0" width="72" height="28" rx="14"/>
+      <text x="16" y="19" class="chip">UV</text>
+    </g>
+  </g>
+</svg>
